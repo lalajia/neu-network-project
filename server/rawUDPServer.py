@@ -2,25 +2,34 @@ import socket
 import struct
 
 
-s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
+s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
+######### Connections ##########
+
+# FIXME: # Bind to the desired network interface and port
+# server_port = 12345
+# server_addr = ('', server_port)
+# s.bind(server_addr)
+# print("Starting server on port:", server_port)
+
+server_name = s.gethostname()  # Server IP
+server_port = 12345  # Server Port Number
+server_addr = (
+    server_name,
+    server_port,
+)  # Tuple to identify the UDP connection while sending
+
+s.bind(server_addr)
+print("Starting server on port: ", server_port)
 
 
-# Replace with your own IP address
-server_ip = "your_own_ip_address"
-s.bind((server_ip, 0))
-
-
+###################### Connecting ###################
 while True:
-    packet, addr = s.recvfrom(2048)
+    packet, client_addr = s.recvfrom(2048)
 
-    # The IP header is the first 20 bytes of the packet
-    ip_header = packet[:20]
+    # Calculate the offset for custom headers
+    ip_header_offset = 20  # Adjust this based on your custom IP header
+    udp_header_offset = 28  # Adjust this based on your custom UDP header
+    data = packet[ip_header_offset + udp_header_offset :]
 
-    # Unpack the IP header
-    iph = struct.unpack("!BBHHHBBH4s4s", ip_header)
-
-    # The data starts after the IP header and the UDP header (8 bytes)
-    data = packet[28:]
-
-    print("Received packet from:", addr)
-    print("Data:", data.decode())
+    print("Received packet from:", client_addr)
+    print("File:", data.decode())
