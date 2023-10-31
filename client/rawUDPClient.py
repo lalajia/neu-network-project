@@ -12,8 +12,10 @@ server_addr = (
     serverName,
     serverPort,
 )  # Tuple to identify the UDP connection while sending
+
+# FIXME
 ip_source = "127.0.0.1"
-ip_dest = ""
+ip_dest = gethostname()
 
 ######### Choose the file to download #########
 
@@ -40,7 +42,9 @@ ip_daddr = socket.inet_aton(socket.AF_INET, ip_dest)
 ip_ver_ihl = (ip_version << 4) + ip_ihl  # calculated by version and ihl
 
 # update length
-ip_total_length = len(user_data) + 20
+ip_total_length = (
+    len(user_data) + 28
+)  # 20 bytes for IP header and 8 bytes for UDP header
 
 
 ip_header = struct.pack(
