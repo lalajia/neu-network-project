@@ -101,10 +101,24 @@ clientSocket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW
 clientSocket.sendto(packet, (serverName, serverPort))
 # 或者
 # clientSocket.sendto(packet, (ip_dest, 0))
-modifiedMessage, serverAddress = clientSocket.recvfrom(2048)
+received_data, serverAddress = clientSocket.recvfrom(2048)
 
-with open("received_file", "wb") as file:
-    file.write(modifiedMessage)
-print("Received file saved as 'received_file'")
-print(modifiedMessage.decode())
+print(".....", received_data)
+
+# write the received file to disk
+with open("received_file.txt","wb") as file:
+    file.write(received_data)
+    print("Received file saved as 'received_file'")
+
+# Check if the file was found (format problem need to be fixed)
+# if received_data.decode('utf-8') == b"File not found.":
+#     print("File not found.")
+#     clientSocket.close()
+#     exit()
+# else: 
+#     # write the received file to disk
+#     with open("received_file", "wb") as file:
+#         file.write(received_data)
+#         print("Received file saved as 'received_file'")
+    
 clientSocket.close()
