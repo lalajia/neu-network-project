@@ -11,7 +11,7 @@ s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
 # s.bind(server_addr)
 # print("Starting server on port:", server_port)
 
-server_name = s.gethostname()  # Server IP
+server_name = "127.0.0.1"  # Server IP
 server_port = 12345  # Server Port Number
 server_addr = (
     server_name,

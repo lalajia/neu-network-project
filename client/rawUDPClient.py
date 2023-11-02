@@ -1,4 +1,4 @@
-from socket import *
+import socket
 import struct
 
 
@@ -6,7 +6,7 @@ import struct
 # 抄的
 
 # BUFFER_SIZE = 32  # Buffer Size for receiving file in chunks
-serverName = gethostname()  # Server IP
+serverName = "127.0.0.1"  # Server IP
 serverPort = 12345  # Server Port Number
 server_addr = (
     serverName,
@@ -15,13 +15,14 @@ server_addr = (
 
 # FIXME
 ip_source = "127.0.0.1"
-ip_dest = gethostname()
+ip_dest = "127.0.0.1"
 
 ######### Choose the file to download #########
 
-print("Enter the file name to download:")
 print("test1")
 print("test2")
+print("Enter the file name to download:")
+
 message = input()
 user_data = message.encode()
 
@@ -35,10 +36,10 @@ ip_identification = 54321
 ip_flags = 0
 ip_fragment_offset = 0
 ip_time_to_live = 255
-ip_protocol = socket.IPPROTO_UDP
+ip_protocol = 253
 ip_header_checksum = 0  # TODO: to be updated
-ip_saddr = socket.inet_aton(socket.AF_INET, ip_source)
-ip_daddr = socket.inet_aton(socket.AF_INET, ip_dest)
+ip_saddr = socket.inet_aton(ip_source)
+ip_daddr = socket.inet_aton(ip_dest)
 ip_ver_ihl = (ip_version << 4) + ip_ihl  # calculated by version and ihl
 
 # update length
@@ -101,5 +102,9 @@ clientSocket.sendto(packet, (serverName, serverPort))
 # 或者
 # clientSocket.sendto(packet, (ip_dest, 0))
 modifiedMessage, serverAddress = clientSocket.recvfrom(2048)
+
+with open("received_file", "wb") as file:
+    file.write(modifiedMessage)
+print("Received file saved as 'received_file'")
 print(modifiedMessage.decode())
 clientSocket.close()
