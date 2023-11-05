@@ -36,18 +36,22 @@ if __name__ == "__main__":
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
     server_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
     server_socket.bind((server_ip, server_port))
+    print("Server started, waiting for request...")
+    # gracefully handle keyboard interrupt
+    try:
+        while True:
+            raw_data, addr = server_socket.recvfrom(buffer_size)
+            ip_version, ip_header_length, ip_ttl, ip_protocol, ip_source_address, ip_destination_address, udp_segment = (
+                unpack_ip_packet(raw_data))
 
-    while True:
-        raw_data, addr = server_socket.recvfrom(buffer_size)
-        ip_version, ip_header_length, ip_ttl, ip_protocol, ip_source_address, ip_destination_address, udp_segment = (
-            unpack_ip_packet(raw_data))
-
-        udp_source_port, udp_destination_port, udp_length, udp_checksum, payload = unpack_udp_segment(udp_segment)
-        # Check if the destination port is the same as the server port
-        if udp_destination_port == server_port:
-            # Extract the HTTP request from the payload
-            http_request = payload.decode()
-            filename = http_request.split(' ')[1].strip('/')
-            # Send the file or error response back to the client
-            print("Received request for file: " + filename)
-            send_file(server_socket, filename, ip_source_address, udp_source_port)
+            udp_source_port, udp_destination_port, udp_length, udp_checksum, payload = unpack_udp_segment(udp_segment)
+            # Check if the destination port is the same as the server port
+            if udp_destination_port == server_port:
+                # Extract the HTTP request from the payload
+                http_request = payload.decode()
+                filename = http_request.split(' ')[1].strip('/')
+                # Send the file or error response back to the client
+                print("Received request for file: " + filename)
+                send_file(server_socket, filename, ip_source_address, udp_source_port)
+    except KeyboardInterrupt:
+        print("Server interrupted by user, bye!")
