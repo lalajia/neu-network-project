@@ -1,11 +1,15 @@
 import socket
-from common import unpack_udp_segment, unpack_ip_packet, fragment_data, create_udp_segment, create_ip_packet
+import os
+from util import get_server_dir, get_client_dir, fragment_data
+from transport import unpack_udp_segment, create_udp_segment
+from network import unpack_ip_packet, create_ip_packet
+
 
 def create_http_request(filename_to_request):
-    # use http request to request the file
     # define the http request header
     http_request_header = "GET /" + filename_to_request + " HTTP/1.1\r\n\r\n"
     return http_request_header.encode()
+
 
 def receive_file(client_socket, buffer_size=65535):
     print("Listening for incoming file data...")
@@ -26,12 +30,12 @@ def receive_file(client_socket, buffer_size=65535):
                     break
                 elif http_response_code == "200":
                     print("File receive complete.")
-                    with open(filename_to_save, "ab") as file:
+                    with open(os.path.join(get_client_dir(), filename_to_request), "ab") as file:
                         file.write(body)
                     break
                 elif http_response_code == "202":
-                    # file received in progress
-                    with open(filename_to_save, "ab") as file:
+                    print("File receive in progress...")
+                    with open(os.path.join(get_client_dir(), filename_to_request), "ab") as file:
                         file.write(body)
                     continue
                 else:
@@ -40,16 +44,21 @@ def receive_file(client_socket, buffer_size=65535):
     except KeyboardInterrupt:
         print("File reception interrupted by user.")
 
+
 if __name__ == "__main__":
     ######### Choose the file to download #########
     print("Enter the file name to download:")
-    # Print the list of files available
-    print("test1.txt")
-    print("test2.txt")
+    # print a list of files available to server
+    files_in_resources = os.listdir(get_server_dir())
+    print("\n".join(files_in_resources))
     filename_to_request = input()
     request = create_http_request(filename_to_request)
     to_send = fragment_data(request)
-    filename_to_save = "download_"+filename_to_request
+    # check if file exists in download directory
+    if filename_to_request in os.listdir(get_client_dir()):
+        # if so remove it
+        os.remove(os.path.join(get_client_dir(), filename_to_request))
+        print("File already exists in download directory, overriding...")
     ######### Connections ##########
 
     server_ip = "127.0.0.1"
