@@ -10,7 +10,6 @@ def create_ip_packet(ip_source, ip_dest, udp_segment):
 
     ip_type_of_service = 0  # dscp
     ip_identification = random.randint(0, 65535)
-    ip_identification = 23333
     ip_fragment_offset = 0
     ip_time_to_live = 255
     ip_protocol = socket.IPPROTO_UDP  # UDP

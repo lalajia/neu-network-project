@@ -12,8 +12,10 @@ def receive_file(client_socket, buffer_size=65535):
     try:
         while True:
             raw_data, addr = client_socket.recvfrom(buffer_size)
-            if addr[0] == server_ip and addr[1] == server_port:
-                payload = unpack_udp_segment(unpack_ip_packet(raw_data)[6])[4]
+            ip_version, ip_header_length, ip_ttl, ip_protocol, ip_source_address, ip_destination_address, udp_segment \
+                = unpack_ip_packet(raw_data)
+            udp_source_port, udp_destination_port, udp_length, udp_checksum, payload = unpack_udp_segment(udp_segment)
+            if ip_source_address == server_ip and udp_source_port == server_port:
                 header_end = payload.find(b'\r\n\r\n')
                 headers = payload[:header_end].decode('ascii', errors='ignore')
                 body = payload[header_end + 4:]
@@ -25,12 +27,12 @@ def receive_file(client_socket, buffer_size=65535):
                 elif http_response_code == "200":
                     print("File receive complete.")
                     with open(filename_to_save, "ab") as file:
-                        file.write(body.encode())
+                        file.write(body)
                     break
                 elif http_response_code == "202":
                     # file received in progress
                     with open(filename_to_save, "ab") as file:
-                        file.write(body.encode())
+                        file.write(body)
                     continue
                 else:
                     print("Error: Unknown http response code.")
@@ -59,15 +61,14 @@ if __name__ == "__main__":
         server_port
     )  # Tuple to identify the UDP connection while sending
     ################## UDP raw socket ###################
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
     # tell kernel not to put in headers, since we are providing it
     client_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
     client_socket.bind((client_ip, client_port))
     for payload in to_send:
         udp_segment = create_udp_segment(payload, client_ip, client_port, server_ip, server_port)
         packet = create_ip_packet(client_ip, server_ip, udp_segment)
-        for i in range(100):
-            client_socket.sendto(packet, server_addr)
+        client_socket.sendto(packet, server_addr)
 
     receive_file(client_socket)
     client_socket.close()
