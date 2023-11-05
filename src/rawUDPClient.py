@@ -12,7 +12,7 @@ def receive_file(client_socket, buffer_size=65535):
     try:
         while True:
             raw_data, addr = client_socket.recvfrom(buffer_size)
-            if addr[0] == server_name and addr[1] == server_port:
+            if addr[0] == server_ip and addr[1] == server_port:
                 payload = unpack_udp_segment(unpack_ip_packet(raw_data)[6])[4]
                 header_end = payload.find(b'\r\n\r\n')
                 headers = payload[:header_end].decode('ascii', errors='ignore')
@@ -49,22 +49,25 @@ if __name__ == "__main__":
     to_send = fragment_data(request)
     filename_to_save = "download_"+filename_to_request
     ######### Connections ##########
-    server_name = "127.0.0.1"  # Server IP
-    client_name = "127.0.0.1"
+
+    server_ip = "127.0.0.1"
+    client_ip = "127.0.0.1"
     server_port = 12345  # Server Port Number
     client_port = 54321
     server_addr = (
-        server_name,
+        server_ip,
         server_port
     )  # Tuple to identify the UDP connection while sending
     ################## UDP raw socket ###################
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
+    # tell kernel not to put in headers, since we are providing it
     client_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+    client_socket.bind((client_ip, client_port))
     for payload in to_send:
-        udp_segment = create_udp_segment(payload, client_name, client_port, server_name, server_port)
-        packet = create_ip_packet(client_name, server_name, udp_segment)
+        udp_segment = create_udp_segment(payload, client_ip, client_port, server_ip, server_port)
+        packet = create_ip_packet(client_ip, server_ip, udp_segment)
         for i in range(100):
-            client_socket.sendto(packet, (server_name, 0))
+            client_socket.sendto(packet, server_addr)
 
     receive_file(client_socket)
     client_socket.close()

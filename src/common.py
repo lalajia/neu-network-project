@@ -14,16 +14,40 @@ def create_ip_packet(ip_source, ip_dest, udp_segment):
     ip_fragment_offset = 0
     ip_time_to_live = 255
     ip_protocol = socket.IPPROTO_UDP  # UDP
-    ip_header_checksum = 0  # TODO: to be updated
     ip_saddr = socket.inet_aton(ip_source)
     ip_daddr = socket.inet_aton(ip_dest)
-
     # update length
     ip_total_length = len(udp_segment) + 20
+
+    def ipv4_checksum(header):
+        checksum = 0
+        for i in range(0, len(header), 2):
+            if i == 10:  # Skip the checksum field itself
+                continue
+            # Combine two bytes and add them to the checksum
+            word = (header[i] << 8) + header[i + 1]
+            checksum += word
+            checksum = (checksum & 0xffff) + (checksum >> 16)
+        # One's complement of the checksum
+        checksum = ~checksum & 0xffff
+        return checksum
 
     # B = 1 byte
     # H = 2 bytes
     # 4s = 4 bytes
+    ip_header_without_checksum = struct.pack(
+        "!BBHHHBBH4s4s",
+        ip_ver_ihl,  # B
+        ip_type_of_service,  # B
+        ip_total_length,  # H
+        ip_identification,  # H
+        ip_fragment_offset,  # H
+        ip_time_to_live,
+        ip_protocol,
+        0,
+        ip_saddr,
+        ip_daddr,
+    )
     ip_header = struct.pack(
         "!BBHHHBBH4s4s",
         ip_ver_ihl,  # B
@@ -33,7 +57,7 @@ def create_ip_packet(ip_source, ip_dest, udp_segment):
         ip_fragment_offset,  # H
         ip_time_to_live,
         ip_protocol,
-        ip_header_checksum,
+        ipv4_checksum(ip_header_without_checksum),
         ip_saddr,
         ip_daddr,
     )
