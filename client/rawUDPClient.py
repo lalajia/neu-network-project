@@ -14,13 +14,13 @@ server_addr = (
 )  # Tuple to identify the UDP connection while sending
 
 # FIXME
-ip_source = "127.0.0.1"
+ip_source = "192.168.1.72"
 ip_dest = "127.0.0.1"
 
 ######### Choose the file to download #########
 
-print("test1")
-print("test2")
+print("test1.txt")
+print("test2.txt")
 print("Enter the file name to download:")
 
 message = input()
@@ -102,23 +102,13 @@ clientSocket.sendto(packet, (serverName, serverPort))
 # 或者
 # clientSocket.sendto(packet, (ip_dest, 0))
 received_data, serverAddress = clientSocket.recvfrom(2048)
+ip_header_offset = 20  # Adjust this based on your custom IP header
+udp_header_offset = 28  # Adjust this based on your custom UDP header
+data = received_data[ip_header_offset + udp_header_offset :]
 
-print(".....", received_data)
 
 # write the received file to disk
-with open("received_file.txt","wb") as file:
-    file.write(received_data)
+with open("received_file.txt", "wb") as file:
+    file.write(data)
     print("Received file saved as 'received_file'")
-
-# Check if the file was found (format problem need to be fixed)
-# if received_data.decode('utf-8') == b"File not found.":
-#     print("File not found.")
-#     clientSocket.close()
-#     exit()
-# else: 
-#     # write the received file to disk
-#     with open("received_file", "wb") as file:
-#         file.write(received_data)
-#         print("Received file saved as 'received_file'")
-    
 clientSocket.close()
