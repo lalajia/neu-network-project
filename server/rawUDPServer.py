@@ -23,26 +23,40 @@ print("Starting server on port: ", server_port)
 
 user_data = ("message").encode()
 ip_source = "127.0.0.1"
-ip_dest = "192.168.1.72"
+ip_dest = "127.0.0.1"
+
+################## UDP header ###################
+
+# TODO: need pseudo header
+
+# upd header
+udp_source_port = 12345
+udp_destination_port = 54321
+udp_length = len(user_data) + 8
+udp_checksum = 0
+
+
+udp_header = struct.pack(
+    "!HHHH", udp_source_port, udp_destination_port, udp_length, udp_checksum
+)
+
 ################## IP header ###################
 ip_version = 4  # ipv4
 ip_ihl = 5  # Header Length =5, no option
 ip_type_of_service = 0  # dscp
-ip_total_length = 0  # TODO: to be updated
+ip_total_length = 20  # TODO: to be updated
 ip_identification = 54321
 ip_flags = 0
 ip_fragment_offset = 0
 ip_time_to_live = 255
-ip_protocol = 253
+ip_protocol = 17
 ip_header_checksum = 0  # TODO: to be updated
 ip_saddr = socket.inet_aton(ip_source)
 ip_daddr = socket.inet_aton(ip_dest)
 ip_ver_ihl = (ip_version << 4) + ip_ihl  # calculated by version and ihl
 
-# update length
-ip_total_length = (
-    len(user_data) + 28
-)  # 20 bytes for IP header and 8 bytes for UDP header
+# # update length
+# ip_total_length = len(user_data) + 28  # 20 bytes for IP header
 
 
 ip_header = struct.pack(
@@ -60,21 +74,6 @@ ip_header = struct.pack(
 )
 
 
-################## UDP header ###################
-
-# TODO: need pseudo header
-
-# upd header
-udp_source_port = 12345
-udp_destination_port = 54321
-udp_length = len(user_data) + 8
-udp_checksum = 0
-
-
-udp_header = struct.pack(
-    "!HHHH", udp_source_port, udp_destination_port, udp_length, udp_checksum
-)
-
 # final package
 packet = ip_header + udp_header + user_data
 
@@ -83,16 +82,22 @@ packet = ip_header + udp_header + user_data
 while True:
     packet, client_addr = s.recvfrom(2048)
 
+    loop_back_header_offset = 20
+
     # Calculate the offset for custom headers
-    ip_header_offset = 20  # Adjust this based on your custom IP header
-    udp_header_offset = 28  # Adjust this based on your custom UDP header
-    data = packet[ip_header_offset + udp_header_offset :]
-    file_name = data.decode()
-    with open(file_name, "rb") as file:
+    ip_header_offset = 20
+    udp_header_offset = 8
+    data = packet[loop_back_header_offset + ip_header_offset + udp_header_offset :]
+    print("data is ", data)
+    # file_name = data.decode()
+    with open(data, "rb") as file:
         file_data = file.read()
+        print(file_data)
 
-    # Send the content of the file back to the client
     s.sendto(file_data, client_addr)
+    #
+    # Send the content of the file back to the client
 
+    print("Received data", packet)
     print("Received packet from:", client_addr)
-    print("File:", file_name)
+    print("File:", data.decode())
