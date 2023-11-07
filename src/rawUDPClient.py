@@ -36,14 +36,14 @@ def receive_file(client_socket, server_ip, server_port, buffer_size=65535):
                 headers = payload[:header_end].decode('ascii', errors='ignore')
                 body = payload[header_end + 4:]
                 http_response_code = headers.split(" ")[1]
-                # Extract the sequence number from the HTTP response
-                sequence_num = int(headers.split("Sequence: ")[1].split("\r\n")[0])
 
                 # Handle different HTTP response codes
                 if http_response_code == "404":
                     print("File not found on server.")
                     break
                 elif http_response_code in ["200", "202"]:
+                    # Extract the sequence number from the HTTP response
+                    sequence_num = int(headers.split("Sequence: ")[1].split("\r\n")[0])
                     if sequence_num == expected_seq_num:
                         # Write the received data to file
                         print(f"Received packet {sequence_num}.")
