@@ -32,18 +32,17 @@ if __name__ == "__main__":
     server_ip = "127.0.0.1"
     server_port = 12345
     buffer_size = 65535
-
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
-    server_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
     server_socket.bind((server_ip, server_port))
     print("Server started, waiting for request...")
     # gracefully handle keyboard interrupt
     try:
         while True:
             raw_data, addr = server_socket.recvfrom(buffer_size)
-            ip_version, ip_header_length, ip_ttl, ip_protocol, ip_source_address, ip_destination_address, udp_segment = (
-                unpack_ip_packet(raw_data))
-
+            ip_version, ip_header_length, ip_ttl, ip_protocol, ip_source_address, ip_destination_address, udp_segment = unpack_ip_packet(raw_data)
+            if ip_protocol != socket.IPPROTO_UDP:
+                print(ip_protocol)
+                continue
             udp_source_port, udp_destination_port, udp_length, udp_checksum, payload = unpack_udp_segment(udp_segment)
             # Check if the destination port is the same as the server port
             if udp_destination_port == server_port:
