@@ -51,7 +51,7 @@ def send_file(server_socket, filename, client_ip, client_port, server_ip, server
                     except socket.timeout:
                         continue  # Timeout occurred, resend the packet
                 sequence_number += 1  # Increment sequence number after receiving ACK
-
+            server_socket.settimeout(None)  # Reset the timeout
 
 if __name__ == "__main__":
     server_ip = "127.0.0.1"
@@ -80,5 +80,3 @@ if __name__ == "__main__":
                 send_file(server_socket, filename, ip_source_address, udp_source_port, server_ip, server_port)
     except KeyboardInterrupt:
         print("Server interrupted by user, bye!")
-    except TimeoutError:
-        print("Server timeout, bye!")

@@ -36,6 +36,7 @@ def receive_file(client_socket, server_ip, server_port, buffer_size=65535):
                 headers = payload[:header_end].decode('ascii', errors='ignore')
                 body = payload[header_end + 4:]
                 http_response_code = headers.split(" ")[1]
+                # Extract the sequence number from the HTTP response
                 sequence_num = int(headers.split("Sequence: ")[1].split("\r\n")[0])
 
                 # Handle different HTTP response codes
