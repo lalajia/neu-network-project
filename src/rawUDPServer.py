@@ -1,11 +1,22 @@
-import socket
 import os
-from transport import unpack_udp_segment, create_udp_segment
-from network import unpack_ip_packet, create_ip_packet
+import socket
+
 from util import get_server_dir, fragment_data
+from transport import create_udp_segment, unpack_udp_segment
+from network import create_ip_packet, unpack_ip_packet
+
+# Constants
+TIMEOUT = 0.5  # Timeout interval in seconds
+
+def extract_ack_number(ack_packet):
+    try:
+        message = unpack_udp_segment(unpack_ip_packet(ack_packet)[6])[4]
+        return int(message.decode().split(" ")[1])
+    except UnicodeDecodeError:
+        return -1
 
 
-def send_file(server_socket, filename, client_ip, client_port):
+def send_file(server_socket, filename, client_ip, client_port, server_ip, server_port):
     # Check if file exists
     if not os.path.isfile(os.path.join(get_server_dir(), filename)):
         http_response = "HTTP/1.1 404 Not Found\r\n\r\n"
@@ -16,17 +27,31 @@ def send_file(server_socket, filename, client_ip, client_port):
         with open(os.path.join(get_server_dir(), filename), 'rb') as f:
             content = f.read()
             to_send = fragment_data(content)
-            # 202 for all packets except the last one
-            for i, data in enumerate(to_send):
-                if i != len(to_send) - 1:
-                    http_response = "HTTP/1.1 202 OK\r\n\r\n".encode() + data
-                else:
-                    http_response = "HTTP/1.1 200 OK\r\n\r\n".encode() + data
+            sequence_number = 0
+            server_socket.settimeout(TIMEOUT)  # Set the timeout for ACK
 
+            for fragment in to_send:
+                # Prepare the HTTP response with the sequence number
+                response_code = "202 OK" if sequence_number < len(to_send) - 1 else "200 OK"
+                http_response = f"HTTP/1.1 {response_code}\r\nSequence: {sequence_number}\r\n\r\n".encode() + fragment
+
+                # Send the fragment
                 udp_segment = create_udp_segment(http_response, server_ip, server_port, client_ip, client_port)
                 packet = create_ip_packet(server_ip, client_ip, udp_segment)
-                server_socket.sendto(packet, (client_ip, client_port))
+                while True:
+                    server_socket.sendto(packet, (client_ip, client_port))
+                    try:
+                        # Wait for an ACK
+                        ack_packet, _ = server_socket.recvfrom(1024)  # Buffer size for ACK should be small
+                        # Extract ACK number from packet
+                        ack_num = extract_ack_number(ack_packet)
 
+                        if ack_num == sequence_number:
+                            break  # Correct ACK received, break out of the resend loop
+                    except socket.timeout:
+                        continue  # Timeout occurred, resend the packet
+                sequence_number += 1  # Increment sequence number after receiving ACK
+            server_socket.settimeout(None)  # Reset the timeout
 
 if __name__ == "__main__":
     server_ip = "127.0.0.1"
@@ -52,6 +77,6 @@ if __name__ == "__main__":
                 filename = http_request.split(' ')[1].strip('/')
                 # Send the file or error response back to the client
                 print("Received request for file: " + filename)
-                send_file(server_socket, filename, ip_source_address, udp_source_port)
+                send_file(server_socket, filename, ip_source_address, udp_source_port, server_ip, server_port)
     except KeyboardInterrupt:
         print("Server interrupted by user, bye!")
