@@ -10,6 +10,14 @@ CS5700 Foundation of Network
 
 The results of the trasmission would be displayed in the resource folder.
 
+# 2 The details for each python file in src folder
+
+## 1 network.py
+This component is to implement the netwrk layer including the creation of the ip datagram when sending packet, and how to unpack the packet received.
+
+## 2 rawUDPClient.py
+This component is to implent the logic of the client side. This involves the creation of the application layer protocol HTTP, the behavior of the client when receiving the file from the server and a main function for socket creation, request sending.
+
 ## 3 rawUDPServer.py
 
 This file is a server implementation for a UDP&IP file transfer protocol. It listens for incoming UDP packets with an IP and port, extracts requests for files from the packets, and responds by sending the requested file or an error response back to the client. It handles packet fragmentation, waits for acknowledgment (ACK) packets from the client, and retransmits packets if no ACK is received within a timeout period.
