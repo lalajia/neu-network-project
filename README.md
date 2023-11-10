@@ -13,6 +13,7 @@ The results of the trasmission would be displayed in the resource folder.
 # 2 The details for each python file in src folder
 
 ## 1 network.py
+
 This component is to implement the netwrk layer including the creation of the ip datagram when sending packet, and how to unpack the packet received.
 
 ## 2 rawUDPClient.py
@@ -31,3 +32,6 @@ This file provides functions for packing and unpacking with UDP segments. It cre
 
 This file defines functions for managing resource folder. It provides methods to obtain the resource directory for the server and client components, allowing easy access to project resources. Additionally, it offers a function to split a given data sequence into fragments of a specified size for UDP communication applications.
 
+## 6 reference
+
+[Cannot build raw on MAC/Windows](https://stackoverflow.com/questions/49530269/python-socket-setsockopt-with-raw-socket)

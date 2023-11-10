@@ -10,9 +10,12 @@ def create_http_request(filename_to_request):
     http_request_header = "GET /" + filename_to_request + " HTTP/1.1\r\n\r\n"
     return http_request_header.encode()
 
+
 def send_ack(client_socket, server_ip, server_port, sequence_num):
     ack_data = f"ACK {sequence_num}".encode()
-    ack_udp_segment = create_udp_segment(ack_data, client_ip, client_port, server_ip, server_port)
+    ack_udp_segment = create_udp_segment(
+        ack_data, client_ip, client_port, server_ip, server_port
+    )
     ack_packet = create_ip_packet(client_ip, server_ip, ack_udp_segment)
     client_socket.sendto(ack_packet, (server_ip, server_port))
 
@@ -27,14 +30,27 @@ def receive_file(client_socket, server_ip, server_port, buffer_size=65535):
         while True:
             raw_data, addr = client_socket.recvfrom(buffer_size)
             # Unpack IP and UDP headers
-            ip_version, ip_header_length, ip_ttl, ip_protocol, ip_source_address, ip_destination_address, udp_segment \
-                = unpack_ip_packet(raw_data)
-            udp_source_port, udp_destination_port, udp_length, udp_checksum, payload = unpack_udp_segment(udp_segment)
+            (
+                ip_version,
+                ip_header_length,
+                ip_ttl,
+                ip_protocol,
+                ip_source_address,
+                ip_destination_address,
+                udp_segment,
+            ) = unpack_ip_packet(raw_data)
+            (
+                udp_source_port,
+                udp_destination_port,
+                udp_length,
+                udp_checksum,
+                payload,
+            ) = unpack_udp_segment(udp_segment)
 
             if ip_source_address == server_ip and udp_source_port == server_port:
-                header_end = payload.find(b'\r\n\r\n')
-                headers = payload[:header_end].decode('ascii', errors='ignore')
-                body = payload[header_end + 4:]
+                header_end = payload.find(b"\r\n\r\n")
+                headers = payload[:header_end].decode("ascii", errors="ignore")
+                body = payload[header_end + 4 :]
                 http_response_code = headers.split(" ")[1]
 
                 # Handle different HTTP response codes
@@ -47,7 +63,9 @@ def receive_file(client_socket, server_ip, server_port, buffer_size=65535):
                     if sequence_num == expected_seq_num:
                         # Write the received data to file
                         print(f"Received packet {sequence_num}.")
-                        with open(os.path.join(get_client_dir(), filename_to_request), "ab") as file:
+                        with open(
+                            os.path.join(get_client_dir(), filename_to_request), "ab"
+                        ) as file:
                             file.write(body)
 
                         # Update the expected sequence number
@@ -55,7 +73,10 @@ def receive_file(client_socket, server_ip, server_port, buffer_size=65535):
 
                         # Check the buffer for the next expected packet
                         while expected_seq_num in packet_buffer:
-                            with open(os.path.join(get_client_dir(), filename_to_request), "ab") as file:
+                            with open(
+                                os.path.join(get_client_dir(), filename_to_request),
+                                "ab",
+                            ) as file:
                                 file.write(packet_buffer.pop(expected_seq_num))
                             expected_seq_num += 1
 
@@ -72,7 +93,9 @@ def receive_file(client_socket, server_ip, server_port, buffer_size=65535):
                             packet_buffer[sequence_num] = body
 
                         # Resend ACK for the last in-order sequence number
-                        send_ack(client_socket, server_ip, server_port, expected_seq_num - 1)
+                        send_ack(
+                            client_socket, server_ip, server_port, expected_seq_num - 1
+                        )
                 else:
                     print("Error: Unknown HTTP response code.")
                     break
@@ -102,15 +125,17 @@ if __name__ == "__main__":
     client_port = 54321
     server_addr = (
         server_ip,
-        server_port
+        server_port,
     )  # Tuple to identify the UDP connection while sending
     ################## UDP raw socket ###################
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
     # tell kernel not to put in headers, since we are providing it
-    client_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+    # client_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
     client_socket.bind((client_ip, client_port))
     for payload in to_send:
-        udp_segment = create_udp_segment(payload, client_ip, client_port, server_ip, server_port)
+        udp_segment = create_udp_segment(
+            payload, client_ip, client_port, server_ip, server_port
+        )
         packet = create_ip_packet(client_ip, server_ip, udp_segment)
         client_socket.sendto(packet, server_addr)
 
