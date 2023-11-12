@@ -1,5 +1,6 @@
 import os
 import socket
+from sys import platform
 
 from util import get_server_dir, fragment_data
 from transport import create_udp_segment, unpack_udp_segment
@@ -71,20 +72,19 @@ if __name__ == "__main__":
     server_port = 12345
     buffer_size = 65535
 
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
-    # server_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+    if platform == "darwin":
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
+        #server_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+    else:
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
+        server_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+
     server_socket.bind((server_ip, server_port))
     print("Server started, waiting for request...")
     # gracefully handle keyboard interrupt
     try:
         while True:
             raw_data, addr = server_socket.recvfrom(buffer_size)
-
-            # debug message
-            # print("raw_data is: ", raw_data)
-            # print("address is: ", addr)
-
-            # TODO: extract the loopback header from the udp_segment
             (
                 ip_version,
                 ip_header_length,
@@ -95,11 +95,6 @@ if __name__ == "__main__":
                 udp_segment,
             ) = unpack_ip_packet(raw_data)
 
-            # debug message
-            # print("ip_proto: ", ip_protocol)
-            # print("ip_src_addr: ", ip_source_address)
-            # print("ip_des_addr: ", ip_destination_address)
-
             (
                 udp_source_port,
                 udp_destination_port,
@@ -108,18 +103,10 @@ if __name__ == "__main__":
                 payload,
             ) = unpack_udp_segment(udp_segment)
 
-            # debug message
-            # print("udp_destination_port is: ", udp_destination_port)
-            # print("server_port is: ", server_port)
-
             # Check if the destination port is the same as the server port
             if udp_destination_port == server_port:
                 # Extract the HTTP request from the payload
                 http_request = payload.decode()
-
-                # debug message
-                # print("http_request is: ", http_request)
-
                 filename = http_request.split(" ")[1].strip("/")
                 # Send the file or error response back to the client
                 print("Received request for file: " + filename)

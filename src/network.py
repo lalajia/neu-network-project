@@ -103,13 +103,23 @@ def unpack_helper(ip_header):
         # Unpack little-endian fields
         part4 = struct.unpack("<H", ip_header[6:8])
         # Unpack the rest of the big-endian fields
-        part5 = struct.unpack("!BBH", ip_header[8:])
+        part5 = struct.unpack("!BBH4s4s", ip_header[8:])
         ip_header = part1 + part2 + part3 + part4 + part5
     else:
         ip_header = struct.unpack("!BBHHHBBH4s4s", ip_header)
     return ip_header
 
 def unpack_ip_packet(ip_packet):
+    # figure out how many bytes of header macOS has added and chop it off
+    # we have no control over the header length (may include options), so we have to parse it
+    if platform == "darwin":
+        mac_header_length = 20
+        mac_os_header = ip_packet[:mac_header_length]
+        mac_os_header = unpack_helper(mac_os_header)
+        mac_header_length = (mac_os_header[0] & 0xF) * 4
+        ip_packet = ip_packet[mac_header_length:]
+
+    # parse our own ip header
     ip_header = ip_packet[:20]
     ip_header = unpack_helper(ip_header)
     ip_version = ip_header[0] >> 4
@@ -119,7 +129,5 @@ def unpack_ip_packet(ip_packet):
     ip_source_address = socket.inet_ntoa(ip_header[8])
     ip_destination_address = socket.inet_ntoa(ip_header[9])
     udp_segment = ip_packet[ip_header_length:]
-    # chop off the 20 bytes loopback header on macOS if the packet is from the same machine
-    if platform == "darwin" and ip_source_address == ip_destination_address:
-        udp_segment = udp_segment[20:]
+
     return ip_version, ip_header_length, ip_ttl, ip_protocol, ip_source_address, ip_destination_address, udp_segment

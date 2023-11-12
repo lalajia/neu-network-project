@@ -1,5 +1,7 @@
 import socket
 import os
+from sys import platform
+
 from util import get_server_dir, get_client_dir, fragment_data
 from transport import unpack_udp_segment, create_udp_segment
 from network import unpack_ip_packet, create_ip_packet
@@ -128,9 +130,11 @@ if __name__ == "__main__":
         server_port,
     )  # Tuple to identify the UDP connection while sending
     ################## UDP raw socket ###################
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
-    # tell kernel not to put in headers, since we are providing it
-    # client_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+    if platform == "darwin":
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
+    else:
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
+        client_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
     client_socket.bind((client_ip, client_port))
     for payload in to_send:
         udp_segment = create_udp_segment(
