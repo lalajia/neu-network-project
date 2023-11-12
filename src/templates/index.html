@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='index.css') }}"
+    />
+
+    <title>File Request</title>
+  </head>
+  <body>
+    <h1>File Request</h1>
+    <h3>File list</h3>
+    <ol>
+      {% for file in file_list %}
+      <li>{{ file }}</li>
+      {% endfor %}
+    </ol>
+    <form method="post" action="/">
+      <label for="filename">Enter file name:</label>
+      <input type="text" id="filename" name="filename" required />
+      <button type="submit">Request File</button>
+    </form>
+    <br />
+    <p>Downloading Progress:</p>
+    <progress value="20" max="100">20 %</progress>
+  </body>
+</html>

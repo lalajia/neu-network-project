@@ -1,8 +1,22 @@
+from flask import Flask, render_template, request
 import socket
 import os
 from util import get_server_dir, get_client_dir, fragment_data
 from transport import unpack_udp_segment, create_udp_segment
 from network import unpack_ip_packet, create_ip_packet
+
+app = Flask(__name__)
+
+######### Connections ##########
+
+server_ip = "127.0.0.1"
+client_ip = "127.0.0.1"
+server_port = 12345  # Server Port Number
+client_port = 54321
+server_addr = (
+    server_ip,
+    server_port,
+)  # Tuple to identify the UDP connection while sending
 
 
 def create_http_request(filename_to_request):
@@ -20,7 +34,9 @@ def send_ack(client_socket, server_ip, server_port, sequence_num):
     client_socket.sendto(ack_packet, (server_ip, server_port))
 
 
-def receive_file(client_socket, server_ip, server_port, buffer_size=65535):
+def receive_file(
+    client_socket, server_ip, server_port, filename_to_request, buffer_size=65535
+):
     expected_seq_num = 0  # This will be the next expected sequence number
     packet_buffer = {}  # Buffer for out-of-order packets
 
@@ -103,13 +119,11 @@ def receive_file(client_socket, server_ip, server_port, buffer_size=65535):
         print("File reception interrupted by user.")
 
 
-if __name__ == "__main__":
-    ######### Choose the file to download #########
-    print("Enter the file name to download:")
-    # print a list of files available to server
-    files_in_resources = os.listdir(get_server_dir())
-    print("\n".join(files_in_resources))
-    filename_to_request = input()
+def download_file(filename_to_request):
+    # print(f"Downloading file: {filename_to_request}")
+    # # print a list of files available to server
+    # files_in_resources = os.listdir(get_server_dir())
+    # print("\n".join(files_in_resources))
     request = create_http_request(filename_to_request)
     to_send = fragment_data(request)
     # check if file exists in download directory
@@ -117,16 +131,7 @@ if __name__ == "__main__":
         # if so remove it
         os.remove(os.path.join(get_client_dir(), filename_to_request))
         print("File already exists in download directory, overriding...")
-    ######### Connections ##########
 
-    server_ip = "127.0.0.1"
-    client_ip = "127.0.0.1"
-    server_port = 12345  # Server Port Number
-    client_port = 54321
-    server_addr = (
-        server_ip,
-        server_port,
-    )  # Tuple to identify the UDP connection while sending
     ################## UDP raw socket ###################
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
     # tell kernel not to put in headers, since we are providing it
@@ -139,5 +144,17 @@ if __name__ == "__main__":
         packet = create_ip_packet(client_ip, server_ip, udp_segment)
         client_socket.sendto(packet, server_addr)
 
-    receive_file(client_socket, server_ip, server_port)
-    client_socket.close()
+    receive_file(client_socket, server_ip, server_port, filename_to_request)
+
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    files_in_resources = os.listdir(get_server_dir())
+    if request.method == "POST":
+        filename_to_request = request.form["filename"]
+        download_file(filename_to_request)
+    return render_template("index.html", file_list=files_in_resources)
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
