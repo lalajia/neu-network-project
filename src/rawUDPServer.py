@@ -94,7 +94,6 @@ if __name__ == "__main__":
                 ip_destination_address,
                 udp_segment,
             ) = unpack_ip_packet(raw_data)
-
             (
                 udp_source_port,
                 udp_destination_port,
@@ -102,9 +101,8 @@ if __name__ == "__main__":
                 udp_checksum,
                 payload,
             ) = unpack_udp_segment(udp_segment)
-
             # Check if the destination port is the same as the server port
-            if udp_destination_port == server_port:
+            if ip_protocol == socket.IPPROTO_UDP and udp_destination_port == server_port:
                 # Extract the HTTP request from the payload
                 http_request = payload.decode()
                 filename = http_request.split(" ")[1].strip("/")
