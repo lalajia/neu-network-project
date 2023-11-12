@@ -76,7 +76,7 @@ if __name__ == "__main__":
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
         #server_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
     else:
-        server_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
         server_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
 
     server_socket.bind((server_ip, server_port))
