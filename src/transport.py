@@ -6,9 +6,8 @@ def upd_pseudo_header(source_ip, dest_ip, udp_length):
     # Convert IP addresses to packed binary format
     source_ip_packed = socket.inet_aton(source_ip)
     dest_ip_packed = socket.inet_aton(dest_ip)
-
-    # # Pack the pseudo-header
-    pseudo_header = struct.pack("!4s4sHH", source_ip_packed, dest_ip_packed, udp_length, 0)
+    # Pack the pseudo-header
+    pseudo_header = struct.pack("!4s4sBBH", source_ip_packed, dest_ip_packed, 0, 17, udp_length)
     return pseudo_header
 
 # this function is used to calculate the checksum of udp segment in the sender side
@@ -34,44 +33,8 @@ def udp_checksum_calc(udp_segment, source_ip, dest_ip):
 
 
 
-# def udp_checksum(udp_datagram, source_ip, dest_ip, udp_total_length):
-#     # this function takes a list of integers and calculates the one's complement sum of those integers.
-#     def one_s_complement(msg):
-#         # TODO: implement one's complement
-#         total_sum = sum(msg)
-#         while total_sum >> 16:
-#             total_sum = (total_sum & 0xFFFF) + (total_sum >> 16)
-#         return total_sum & 0xFFFF # keep the lower 16 bits
-    
-#     # Pseudo header
-#     pseudo_header = [
-#         (source_ip >> 16) & 0xFFFF,  # Source IP high 16 bits
-#         source_ip & 0xFFFF,           # Source IP low 16 bits
-#         (dest_ip >> 16) & 0xFFFF,    # Destination IP high 16 bits
-#         dest_ip & 0xFFFF,             # Destination IP low 16 bits
-#         0,                            # Reserved (all zeros)
-#         17,                           # Protocol (17 for UDP)
-#         udp_total_length              # UDP length
-#     ]
-
-#     # Combine pseudo header and UDP datagram
-#     data = pseudo_header + udp_datagram
-
-#     # Calculate one's complement sum
-#     checksum = one_s_complement(data)
-
-#     # Return the one's complement of the sum as the UDP checksum
-#     return checksum ^ 0xFFFF
-
-
-
 def create_udp_segment(payload, source_ip, source_port, dest_ip, dest_port):
     udp_total_length = len(payload) + 8 # 8 bytes for udp header
-    # checksum = upd_checksum_sender(payload, source_ip, dest_ip, udp_length)
-    # udp_psudoheader = struct.pack("!HHHH", source_port, dest_port, udp_length, 0) #TODO need fix?
-    # udp_datagram = udp_psudoheader + payload
-    # checksum = udp_checksum(udp_datagram, source_ip, dest_ip, udp_length)
-    # create a udp datagram without checksum
     udp_header_withoutchecksum = struct.pack("!HHHH", source_port, dest_port, udp_total_length, 0)
     udp_segment_withoutchecksum = udp_header_withoutchecksum + payload
     # calculate the checksum
