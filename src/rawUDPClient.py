@@ -3,7 +3,7 @@ import os
 from sys import platform
 
 from util import get_server_dir, get_client_dir, fragment_data
-from transport import unpack_udp_segment, create_udp_segment
+from transport import unpack_udp_segment, create_udp_segment, check_checksum, udp_checksum_calc
 from network import unpack_ip_packet, create_ip_packet
 
 
@@ -49,7 +49,25 @@ def receive_file(client_socket, server_ip, server_port, buffer_size=65535):
                 payload,
             ) = unpack_udp_segment(udp_segment)
 
+            # print("test udp checksum: ", udp_checksum)
+            # print("test test....:",payload)
+            # checksum_received = udp_checksum_calc(udp_segment, ip_source_address, ip_destination_address)
+            # print("test checksum received: ", checksum_received)
+            # # Check the UDP checksum
+            # if checksum_received != udp_checksum:
+            #     print("UDP checksum mismatch, packet discarded.")
+            #     continue
+            # else:
+            #     print("UDP checksum OK.")
+
+
             if ip_source_address == server_ip and udp_source_port == server_port:
+                # check the udp checksum
+                checksum_received = udp_checksum_calc(udp_segment, ip_source_address, ip_destination_address)
+                if checksum_received != udp_checksum:
+                    print("UDP checksum mismatch, ask for retransmition.")
+                    continue
+
                 header_end = payload.find(b"\r\n\r\n")
                 headers = payload[:header_end].decode("ascii", errors="ignore")
                 body = payload[header_end + 4 :]
@@ -121,8 +139,10 @@ if __name__ == "__main__":
         print("File already exists in download directory, overriding...")
     ######### Connections ##########
 
-    server_ip = "127.0.0.1"
-    client_ip = "127.0.0.1"
+    # server_ip = "127.0.0.1"
+    # client_ip = "127.0.0.1"
+    server_ip = "192.168.1.5" # mininet
+    client_ip = "192.168.1.7" # mininet2
     server_port = 12345  # Server Port Number
     client_port = 54321
     server_addr = (
@@ -135,7 +155,7 @@ if __name__ == "__main__":
     else:
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
         client_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
-    client_socket.bind((client_ip, client_port))
+    client_socket.bind(("0.0.0.0", client_port))
     for payload in to_send:
         udp_segment = create_udp_segment(
             payload, client_ip, client_port, server_ip, server_port

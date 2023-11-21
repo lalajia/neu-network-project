@@ -3,7 +3,7 @@ import socket
 from sys import platform
 
 from util import get_server_dir, fragment_data
-from transport import create_udp_segment, unpack_udp_segment
+from transport import create_udp_segment, unpack_udp_segment, udp_checksum_calc
 from network import create_ip_packet, unpack_ip_packet
 
 # Constants
@@ -68,7 +68,9 @@ def send_file(server_socket, filename, client_ip, client_port, server_ip, server
 
 
 if __name__ == "__main__":
-    server_ip = "127.0.0.1"
+    # server_ip = "127.0.0.1"
+    server_ip = "192.168.1.5" # mininet
+    # client_ip = "192.168.1.7" # mininet2
     server_port = 12345
     buffer_size = 65535
 
@@ -79,7 +81,7 @@ if __name__ == "__main__":
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
         server_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
 
-    server_socket.bind((server_ip, server_port))
+    server_socket.bind(("0.0.0.0", server_port))
     print("Server started, waiting for request...")
     # gracefully handle keyboard interrupt
     try:
@@ -103,6 +105,11 @@ if __name__ == "__main__":
             ) = unpack_udp_segment(udp_segment)
             # Check if the destination port is the same as the server port
             if ip_protocol == socket.IPPROTO_UDP and udp_destination_port == server_port:
+                # check the udp checksum
+                checksum_received = udp_checksum_calc(udp_segment, ip_source_address, ip_destination_address)
+                if checksum_received != udp_checksum:
+                    print("UDP checksum mismatch, ask for retransmition.")
+                    continue
                 # Extract the HTTP request from the payload
                 http_request = payload.decode()
                 filename = http_request.split(" ")[1].strip("/")
