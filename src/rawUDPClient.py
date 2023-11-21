@@ -142,7 +142,7 @@ if __name__ == "__main__":
     # server_ip = "127.0.0.1"
     # client_ip = "127.0.0.1"
     server_ip = "192.168.1.5" # mininet
-    client_ip = "0.0.0.0" # mininet2
+    client_ip = "192.168.1.7" # mininet2
     server_port = 12345  # Server Port Number
     client_port = 54321
     server_addr = (
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     else:
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
         client_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
-    client_socket.bind((client_ip, client_port))
+    client_socket.bind(("0.0.0.0", client_port))
     for payload in to_send:
         udp_segment = create_udp_segment(
             payload, client_ip, client_port, server_ip, server_port

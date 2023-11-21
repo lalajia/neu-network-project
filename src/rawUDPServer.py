@@ -69,8 +69,8 @@ def send_file(server_socket, filename, client_ip, client_port, server_ip, server
 
 if __name__ == "__main__":
     # server_ip = "127.0.0.1"
-    server_ip = "0.0.0.0" # mininet
-    # client_ip = "192.198.1.7" # mininet2
+    server_ip = "192.168.1.5" # mininet
+    # client_ip = "192.168.1.7" # mininet2
     server_port = 12345
     buffer_size = 65535
 
@@ -81,7 +81,7 @@ if __name__ == "__main__":
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
         server_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
 
-    server_socket.bind((server_ip, server_port))
+    server_socket.bind(("0.0.0.0", server_port))
     print("Server started, waiting for request...")
     # gracefully handle keyboard interrupt
     try:
