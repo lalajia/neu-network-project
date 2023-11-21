@@ -142,7 +142,7 @@ if __name__ == "__main__":
     # server_ip = "127.0.0.1"
     # client_ip = "127.0.0.1"
     server_ip = "192.168.1.5" # mininet
-    client_ip = "192.198.1.7" # mininet2
+    client_ip = "0.0.0.0" # mininet2
     server_port = 12345  # Server Port Number
     client_port = 54321
     server_addr = (
