@@ -14,7 +14,7 @@ def extract_ack_number(ack_packet):
     try:
         message = unpack_udp_segment(unpack_ip_packet(ack_packet)[6])[4]
         return int(message.decode().split(" ")[1])
-    except UnicodeDecodeError:
+    except:
         return -1
 
 
