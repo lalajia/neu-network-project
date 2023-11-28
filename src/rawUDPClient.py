@@ -65,7 +65,7 @@ def receive_file(client_socket, server_ip, server_port, buffer_size=65535):
                 # check the udp checksum
                 checksum_received = udp_checksum_calc(udp_segment, ip_source_address, ip_destination_address)
                 if checksum_received != udp_checksum:
-                    print("UDP checksum mismatch, ask for retransmition.")
+                    print("UDP checksum mismatch, discard.")
                     continue
 
                 header_end = payload.find(b"\r\n\r\n")

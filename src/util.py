@@ -20,3 +20,4 @@ def fragment_data(data, udp_payload_size=1024):
     for i in range(0, len(data), udp_payload_size):
         fragments.append(data[i: i + udp_payload_size])
     return fragments
+

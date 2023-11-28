@@ -7,7 +7,7 @@ from transport import create_udp_segment, unpack_udp_segment, udp_checksum_calc
 from network import create_ip_packet, unpack_ip_packet
 
 # Constants
-TIMEOUT = 0.02  # Timeout interval in seconds
+TIMEOUT = 0.01  # Timeout interval in seconds
 
 
 def extract_ack_number(ack_packet):
@@ -108,7 +108,7 @@ if __name__ == "__main__":
                 # check the udp checksum
                 checksum_received = udp_checksum_calc(udp_segment, ip_source_address, ip_destination_address)
                 if checksum_received != udp_checksum:
-                    print("UDP checksum mismatch, ask for retransmition.")
+                    print("UDP checksum mismatch, discard.")
                     continue
                 # Extract the HTTP request from the payload
                 http_request = payload.decode()
