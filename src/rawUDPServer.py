@@ -7,8 +7,8 @@ from transport import create_udp_segment, unpack_udp_segment, udp_checksum_calc
 from network import create_ip_packet, unpack_ip_packet
 
 # Constants
-TIMEOUT = 0.005  # Timeout interval in seconds
-K = 20  # Window size
+TIMEOUT = 0.030  # Timeout interval in seconds
+K = 10  # Window size
 
 def extract_ack_number(ack_packet):
     try:
