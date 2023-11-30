@@ -1,16 +1,19 @@
 from flask import Flask, render_template, request
 import socket
 import os
+# [ ] 4-9:
+from sys import platform
+
 from util import get_server_dir, get_client_dir, fragment_data
-from transport import unpack_udp_segment, create_udp_segment
+from transport import unpack_udp_segment, create_udp_segment, check_checksum, udp_checksum_calc
 from network import unpack_ip_packet, create_ip_packet
 
 app = Flask(__name__)
 
 ######### Connections ##########
-
-server_ip = "127.0.0.1"
-client_ip = "127.0.0.1"
+# [ ] 14-22:
+server_ip = "192.168.1.5" # mininet
+client_ip = "192.168.1.7" # mininet2
 server_port = 12345  # Server Port Number
 client_port = 54321
 server_addr = (
@@ -34,6 +37,7 @@ def send_ack(client_socket, server_ip, server_port, sequence_num):
     client_socket.sendto(ack_packet, (server_ip, server_port))
 
 
+# def receive_file(client_socket, server_ip, server_port, buffer_size=65535):
 def receive_file(
     client_socket, server_ip, server_port, filename_to_request, buffer_size=65535
 ):
@@ -64,9 +68,16 @@ def receive_file(
             ) = unpack_udp_segment(udp_segment)
 
             if ip_source_address == server_ip and udp_source_port == server_port:
+                # [ ] 70-75:
+                # check the udp checksum
+                checksum_received = udp_checksum_calc(udp_segment, ip_source_address, ip_destination_address)
+                if checksum_received != udp_checksum:
+                    print("UDP checksum mismatch, discard.")
+                    continue
+
                 header_end = payload.find(b"\r\n\r\n")
                 headers = payload[:header_end].decode("ascii", errors="ignore")
-                body = payload[header_end + 4 :]
+                body = payload[header_end + 4:]
                 http_response_code = headers.split(" ")[1]
 
                 # Handle different HTTP response codes
@@ -76,42 +87,60 @@ def receive_file(
                 elif http_response_code in ["200", "202"]:
                     # Extract the sequence number from the HTTP response
                     sequence_num = int(headers.split("Sequence: ")[1].split("\r\n")[0])
-                    if sequence_num == expected_seq_num:
-                        # Write the received data to file
-                        print(f"Received packet {sequence_num}.")
-                        with open(
-                            os.path.join(get_client_dir(), filename_to_request), "ab"
-                        ) as file:
-                            file.write(body)
+                    # [ ] 90-143:
+                    is_last_packet = http_response_code == "200"
+                    packet_buffer[sequence_num] = body
 
-                        # Update the expected sequence number
+                    # Send ACK for the received sequence number
+                    send_ack(client_socket, server_ip, server_port, sequence_num)
+
+                    # Write the received data in order
+                    while expected_seq_num in packet_buffer:
+                        with open(os.path.join(get_client_dir(), filename_to_request), "ab") as file:
+                            #print(f"received packet {expected_seq_num}")
+                            file.write(packet_buffer.pop(expected_seq_num))
                         expected_seq_num += 1
 
-                        # Check the buffer for the next expected packet
-                        while expected_seq_num in packet_buffer:
-                            with open(
-                                os.path.join(get_client_dir(), filename_to_request),
-                                "ab",
-                            ) as file:
-                                file.write(packet_buffer.pop(expected_seq_num))
-                            expected_seq_num += 1
-
-                        # Send ACK for the received sequence number
-                        send_ack(client_socket, server_ip, server_port, sequence_num)
-
-                        # If the response code is "200", it's the last packet
-                        if http_response_code == "200":
+                        # Check if the last packet has been written
+                        if is_last_packet and sequence_num == expected_seq_num - 1:
                             print("File receive complete.")
-                            break
-                    else:
-                        # Buffer out-of-order packets
-                        if sequence_num > expected_seq_num:
-                            packet_buffer[sequence_num] = body
+                            return
+                    # if sequence_num == expected_seq_num:
+                    #     # Write the received data to file
+                    #     print(f"Received packet {sequence_num}.")
+                    #     with open(
+                    #         os.path.join(get_client_dir(), filename_to_request), "ab"
+                    #     ) as file:
+                    #         file.write(body)
 
-                        # Resend ACK for the last in-order sequence number
-                        send_ack(
-                            client_socket, server_ip, server_port, expected_seq_num - 1
-                        )
+                    #     # Update the expected sequence number
+                    #     expected_seq_num += 1
+
+                    #     # Check the buffer for the next expected packet
+                    #     while expected_seq_num in packet_buffer:
+                    #         with open(
+                    #             os.path.join(get_client_dir(), filename_to_request),
+                    #             "ab",
+                    #         ) as file:
+                    #             file.write(packet_buffer.pop(expected_seq_num))
+                    #         expected_seq_num += 1
+
+                        # # Send ACK for the received sequence number
+                        # send_ack(client_socket, server_ip, server_port, sequence_num)
+
+                        # # If the response code is "200", it's the last packet
+                        # if http_response_code == "200":
+                    #         print("File receive complete.")
+                    #         break
+                    # else:
+                    #     # Buffer out-of-order packets
+                    #     if sequence_num > expected_seq_num:
+                    #         packet_buffer[sequence_num] = body
+
+                    #     # Resend ACK for the last in-order sequence number
+                    #     send_ack(
+                    #         client_socket, server_ip, server_port, expected_seq_num - 1
+                    #     )
                 else:
                     print("Error: Unknown HTTP response code.")
                     break
@@ -133,10 +162,17 @@ def download_file(filename_to_request):
         print("File already exists in download directory, overriding...")
 
     ################## UDP raw socket ###################
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
-    # tell kernel not to put in headers, since we are providing it
-    # client_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
-    client_socket.bind((client_ip, client_port))
+    # [ ]:166-175 
+    if platform == "darwin":
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
+    else:
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
+        client_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+    client_socket.bind(("0.0.0.0", client_port))
+    # client_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
+    # # tell kernel not to put in headers, since we are providing it
+    # # client_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+    # client_socket.bind((client_ip, client_port))
     for payload in to_send:
         udp_segment = create_udp_segment(
             payload, client_ip, client_port, server_ip, server_port
@@ -158,3 +194,15 @@ def index():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+
+
+# FIXME: delete
+# server_ip = "127.0.0.1"
+# client_ip = "127.0.0.1"
+# server_port = 12345  # Server Port Number
+# client_port = 54321
+# server_addr = (
+#     server_ip,
+#     server_port,
+# )  # Tuple to identify the UDP connection while sending
