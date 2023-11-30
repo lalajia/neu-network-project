@@ -66,23 +66,22 @@ def receive_file(client_socket, server_ip, server_port, buffer_size=65535):
                     break
                 elif http_response_code in ["200", "202"]:
                     sequence_num = int(headers.split("Sequence: ")[1].split("\r\n")[0])
+                    is_last_packet = http_response_code == "200"
+                    packet_buffer[sequence_num] = body
 
-                    if sequence_num >= expected_seq_num:
-                        packet_buffer[sequence_num] = body
+                    # Send ACK for the received sequence number
+                    send_ack(client_socket, server_ip, server_port, sequence_num)
 
-                        # Send ACK for the received sequence number
-                        send_ack(client_socket, server_ip, server_port, sequence_num)
+                    # Write the received data in order
+                    while expected_seq_num in packet_buffer:
+                        with open(os.path.join(get_client_dir(), filename_to_request), "ab") as file:
+                            file.write(packet_buffer.pop(expected_seq_num))
+                        expected_seq_num += 1
 
-                        # Write the received data in order
-                        while expected_seq_num in packet_buffer:
-                            with open(os.path.join(get_client_dir(), filename_to_request), "ab") as file:
-                                file.write(packet_buffer.pop(expected_seq_num))
-                            expected_seq_num += 1
-
-                            # If the response code is "200", it's the last packet
-                            if http_response_code == "200" and sequence_num == expected_seq_num - 1:
-                                print("File receive complete.")
-                                return
+                        # Check if the last packet has been written
+                        if is_last_packet and sequence_num == expected_seq_num - 1:
+                            print("File receive complete.")
+                            return
 
                 else:
                     print("Error: Unknown HTTP response code.")

@@ -9,8 +9,8 @@ from network import create_ip_packet, unpack_ip_packet
 
 # Constants
 TIMEOUT = 0.030  # Timeout interval in seconds
-K = 50  # Window size
-
+K = 2  # Window size
+debug = True
 def extract_ack_number(ack_packet):
     try:
         message = unpack_udp_segment(unpack_ip_packet(ack_packet)[6])[4]
@@ -26,7 +26,7 @@ def prepare_http_response(sequence_num, fragment, total_fragments):
     return f"HTTP/1.1 {response_code}\r\nSequence: {sequence_num}\r\n\r\n".encode() + fragment
 
 def send_packet(server_socket, sequence_num, fragment, server_ip, client_ip, server_port, client_port):
-    http_response = prepare_http_response(sequence_num, fragment, len(fragment_data))
+    http_response = prepare_http_response(sequence_num, fragment, len(fragmented_data))
     udp_segment = create_udp_segment(http_response, server_ip, server_port, client_ip, client_port)
     packet = create_ip_packet(server_ip, client_ip, udp_segment)
     server_socket.sendto(packet, (client_ip, client_port))
@@ -53,25 +53,28 @@ def send_file(server_socket, filename, client_ip, client_port, server_ip, server
 
     with open(os.path.join(get_server_dir(), filename), "rb") as f:
         content = f.read()
-        global fragment_data
-        fragment_data = fragment_data(content)
+        global fragmented_data
+        fragmented_data = fragment_data(content)
 
     window_base = 0
     window_end = 0
     acked_sequence_numbers = set()
     packet_sent_time = {}
     server_socket.settimeout(TIMEOUT)
-
-    while window_base < len(fragment_data):
+    while window_base < len(fragmented_data):
         # queue up packets to send
-        while window_end < window_base + K and window_end < len(fragment_data):
+        while window_end < window_base + K and window_end < len(fragmented_data):
             if window_end not in acked_sequence_numbers:
-                send_packet(server_socket, window_end, fragment_data[window_end], server_ip, client_ip, server_port, client_port)
+                if debug:
+                    print("sending", window_end)
+                send_packet(server_socket, window_end, fragmented_data[window_end], server_ip, client_ip, server_port, client_port)
                 packet_sent_time[window_end] = time.time()
             window_end += 1
 
         ack_num = handle_ack_reception(server_socket, acked_sequence_numbers)
-        if ack_num is not None and 0 <= ack_num < len(fragment_data):
+        if ack_num is not None and 0 <= ack_num < len(fragmented_data):
+            if debug:
+                print("received ack", ack_num)
             acked_sequence_numbers.add(ack_num)
             while window_base in acked_sequence_numbers:
                 acked_sequence_numbers.remove(window_base)
@@ -80,10 +83,11 @@ def send_file(server_socket, filename, client_ip, client_port, server_ip, server
         current_time = time.time()
         for seq_num in range(window_base, window_end):
             if seq_num not in acked_sequence_numbers and current_time - packet_sent_time.get(seq_num, 0) > TIMEOUT:
-                send_packet(server_socket, seq_num, fragment_data[seq_num], server_ip, client_ip, server_port, client_port)
+                print("time out", seq_num)
+                send_packet(server_socket, seq_num, fragmented_data[seq_num], server_ip, client_ip, server_port, client_port)
                 packet_sent_time[seq_num] = current_time
-
     server_socket.settimeout(None)
+
 
 
 
