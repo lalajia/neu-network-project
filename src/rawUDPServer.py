@@ -8,9 +8,9 @@ from transport import create_udp_segment, unpack_udp_segment, udp_checksum_calc
 from network import create_ip_packet, unpack_ip_packet
 
 # Constants
-TIMEOUT = 0.030  # Timeout interval in seconds
-K = 2  # Window size
-debug = True
+TIMEOUT = 0.025  # Timeout interval in seconds
+K = 100  # Window size
+debug = False
 def extract_ack_number(ack_packet):
     try:
         message = unpack_udp_segment(unpack_ip_packet(ack_packet)[6])[4]
@@ -83,7 +83,8 @@ def send_file(server_socket, filename, client_ip, client_port, server_ip, server
         current_time = time.time()
         for seq_num in range(window_base, window_end):
             if seq_num not in acked_sequence_numbers and current_time - packet_sent_time.get(seq_num, 0) > TIMEOUT:
-                print("time out", seq_num)
+                if debug:
+                    print("time out", seq_num)
                 send_packet(server_socket, seq_num, fragmented_data[seq_num], server_ip, client_ip, server_port, client_port)
                 packet_sent_time[seq_num] = current_time
     server_socket.settimeout(None)
