@@ -15,8 +15,9 @@ def get_client_dir():
     return os.path.join(get_resource_dir(), 'client')
 
 
-def fragment_data(data, udp_payload_size=5080):
+def fragment_data(data, udp_payload_size=1400):
     fragments = []
     for i in range(0, len(data), udp_payload_size):
         fragments.append(data[i: i + udp_payload_size])
     return fragments
+
