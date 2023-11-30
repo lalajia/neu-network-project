@@ -8,7 +8,7 @@ from network import create_ip_packet, unpack_ip_packet
 
 # Constants
 TIMEOUT = 0.005  # Timeout interval in seconds
-
+K = 20  # Window size
 
 def extract_ack_number(ack_packet):
     try:
@@ -22,48 +22,50 @@ def send_file(server_socket, filename, client_ip, client_port, server_ip, server
     # Check if file exists
     if not os.path.isfile(os.path.join(get_server_dir(), filename)):
         http_response = "HTTP/1.1 404 Not Found\r\n\r\n"
-        udp_segment = create_udp_segment(
-            http_response.encode(), server_ip, server_port, client_ip, client_port
-        )
+        udp_segment = create_udp_segment(http_response.encode(), server_ip, server_port, client_ip, client_port)
         packet = create_ip_packet(server_ip, client_ip, udp_segment)
         server_socket.sendto(packet, (client_ip, client_port))
     else:
         with open(os.path.join(get_server_dir(), filename), "rb") as f:
             content = f.read()
             to_send = fragment_data(content)
-            sequence_number = 0
+
+            # Initialize sliding window parameters
+            window_base = 0
+            window_end = 0
+            acked_sequence_numbers = set()
             server_socket.settimeout(TIMEOUT)  # Set the timeout for ACK
 
-            for fragment in to_send:
-                # Prepare the HTTP response with the sequence number
-                response_code = (
-                    "202 OK" if sequence_number < len(to_send) - 1 else "200 OK"
-                )
-                http_response = (
-                    f"HTTP/1.1 {response_code}\r\nSequence: {sequence_number}\r\n\r\n".encode()
-                    + fragment
-                )
-
-                # Send the fragment
-                udp_segment = create_udp_segment(
-                    http_response, server_ip, server_port, client_ip, client_port
-                )
-                packet = create_ip_packet(server_ip, client_ip, udp_segment)
-                while True:
+            while window_base < len(to_send):
+                # Send packets within the window
+                while window_end < window_base + K and window_end < len(to_send):
+                    # Prepare and send the packet
+                    response_code = "202 OK" if window_end < len(to_send) - 1 else "200 OK"
+                    http_response = f"HTTP/1.1 {response_code}\r\nSequence: {window_end}\r\n\r\n".encode() + to_send[window_end]
+                    udp_segment = create_udp_segment(http_response, server_ip, server_port, client_ip, client_port)
+                    packet = create_ip_packet(server_ip, client_ip, udp_segment)
                     server_socket.sendto(packet, (client_ip, client_port))
-                    try:
-                        # Wait for an ACK
-                        ack_packet, _ = server_socket.recvfrom(
-                            1024
-                        )  # Buffer size for ACK should be small
-                        # Extract ACK number from packet
-                        ack_num = extract_ack_number(ack_packet)
+                    window_end += 1
 
-                        if ack_num == sequence_number:
-                            break  # Correct ACK received, break out of the resend loop
-                    except socket.timeout:
-                        continue  # Timeout occurred, resend the packet
-                sequence_number += 1  # Increment sequence number after receiving ACK
+                try:
+                    # Wait for an ACK
+                    ack_packet, _ = server_socket.recvfrom(1024)
+                    ack_num = extract_ack_number(ack_packet)
+                    if ack_num >= 0:
+                        acked_sequence_numbers.add(ack_num)
+                        # Slide the window forward
+                        while window_base in acked_sequence_numbers:
+                            acked_sequence_numbers.remove(window_base)
+                            window_base += 1
+                except socket.timeout:
+                    # Resend all packets in the window
+                    for seq_num in range(window_base, window_end):
+                        response_code = "202 OK" if seq_num < len(to_send) - 1 else "200 OK"
+                        http_response = f"HTTP/1.1 {response_code}\r\nSequence: {seq_num}\r\n\r\n".encode() + to_send[seq_num]
+                        udp_segment = create_udp_segment(http_response, server_ip, server_port, client_ip, client_port)
+                        packet = create_ip_packet(server_ip, client_ip, udp_segment)
+                        server_socket.sendto(packet, (client_ip, client_port))
+
             server_socket.settimeout(None)  # Reset the timeout
 
 

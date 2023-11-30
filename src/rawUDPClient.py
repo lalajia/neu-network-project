@@ -49,18 +49,6 @@ def receive_file(client_socket, server_ip, server_port, buffer_size=65535):
                 payload,
             ) = unpack_udp_segment(udp_segment)
 
-            # print("test udp checksum: ", udp_checksum)
-            # print("test test....:",payload)
-            # checksum_received = udp_checksum_calc(udp_segment, ip_source_address, ip_destination_address)
-            # print("test checksum received: ", checksum_received)
-            # # Check the UDP checksum
-            # if checksum_received != udp_checksum:
-            #     print("UDP checksum mismatch, packet discarded.")
-            #     continue
-            # else:
-            #     print("UDP checksum OK.")
-
-
             if ip_source_address == server_ip and udp_source_port == server_port:
                 # check the udp checksum
                 checksum_received = udp_checksum_calc(udp_segment, ip_source_address, ip_destination_address)
@@ -70,57 +58,39 @@ def receive_file(client_socket, server_ip, server_port, buffer_size=65535):
 
                 header_end = payload.find(b"\r\n\r\n")
                 headers = payload[:header_end].decode("ascii", errors="ignore")
-                body = payload[header_end + 4 :]
+                body = payload[header_end + 4:]
                 http_response_code = headers.split(" ")[1]
 
-                # Handle different HTTP response codes
                 if http_response_code == "404":
                     print("File not found on server.")
                     break
                 elif http_response_code in ["200", "202"]:
-                    # Extract the sequence number from the HTTP response
                     sequence_num = int(headers.split("Sequence: ")[1].split("\r\n")[0])
-                    if sequence_num == expected_seq_num:
-                        # Write the received data to file
-                        print(f"Received packet {sequence_num}.")
-                        with open(
-                            os.path.join(get_client_dir(), filename_to_request), "ab"
-                        ) as file:
-                            file.write(body)
 
-                        # Update the expected sequence number
-                        expected_seq_num += 1
-
-                        # Check the buffer for the next expected packet
-                        while expected_seq_num in packet_buffer:
-                            with open(
-                                os.path.join(get_client_dir(), filename_to_request),
-                                "ab",
-                            ) as file:
-                                file.write(packet_buffer.pop(expected_seq_num))
-                            expected_seq_num += 1
+                    if sequence_num >= expected_seq_num:
+                        packet_buffer[sequence_num] = body
 
                         # Send ACK for the received sequence number
                         send_ack(client_socket, server_ip, server_port, sequence_num)
 
-                        # If the response code is "200", it's the last packet
-                        if http_response_code == "200":
-                            print("File receive complete.")
-                            break
-                    else:
-                        # Buffer out-of-order packets
-                        if sequence_num > expected_seq_num:
-                            packet_buffer[sequence_num] = body
+                        # Write the received data in order
+                        while expected_seq_num in packet_buffer:
+                            with open(os.path.join(get_client_dir(), filename_to_request), "ab") as file:
+                                file.write(packet_buffer.pop(expected_seq_num))
+                            expected_seq_num += 1
 
-                        # Resend ACK for the last in-order sequence number
-                        send_ack(
-                            client_socket, server_ip, server_port, expected_seq_num - 1
-                        )
+                            # If the response code is "200", it's the last packet
+                            if http_response_code == "200" and sequence_num == expected_seq_num - 1:
+                                print("File receive complete.")
+                                return
+
                 else:
                     print("Error: Unknown HTTP response code.")
                     break
+
     except KeyboardInterrupt:
         print("File reception interrupted by user.")
+
 
 
 if __name__ == "__main__":
