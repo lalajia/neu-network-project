@@ -76,7 +76,9 @@ def receive_file(client_socket, server_ip, server_port, buffer_size=65535):
                     # Write the received data in order
                     while expected_seq_num in packet_buffer:
                         with open(os.path.join(get_client_dir(), filename_to_request), "ab") as file:
-                            #print(f"received packet {expected_seq_num}")
+                            # print the sequence number of the received packet every 100 packets
+                            if expected_seq_num % 100 == 0:
+                                print(f"Received packet {expected_seq_num}")
                             file.write(packet_buffer.pop(expected_seq_num))
                         expected_seq_num += 1
 
