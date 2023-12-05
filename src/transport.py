@@ -1,7 +1,7 @@
 import struct
 import socket
 
-# the pseudo header is used to calculate the checksum of udp segment, the length is the length of total udp segment
+# Creates a UDP pseudo-header used for calculating the checksum of a UDP segment. The pseudo-header includes source and destination IP addresses, protocol number, and UDP segment length, the length is the length of total udp segment
 def upd_pseudo_header(source_ip, dest_ip, udp_length):
     # Convert IP addresses to packed binary format
     source_ip_packed = socket.inet_aton(source_ip)
@@ -10,7 +10,8 @@ def upd_pseudo_header(source_ip, dest_ip, udp_length):
     pseudo_header = struct.pack("!4s4sBBH", source_ip_packed, dest_ip_packed, 0, 17, udp_length)
     return pseudo_header
 
-# this function is used to calculate the checksum of udp segment in the sender side
+
+# Calculates the UDP checksum for a given UDP segment in the sender side. It incorporates the UDP pseudo-header and the segment data. Used to ensure data integrity by calculating and verifying the checksum.
 def udp_checksum_calc(udp_segment, source_ip, dest_ip):
     # add the pseudo header
     udp_length = len(udp_segment) 
@@ -32,7 +33,7 @@ def udp_checksum_calc(udp_segment, source_ip, dest_ip):
     return checksum
 
 
-
+# Creates a UDP segment by adding the UDP header, including checksum, to the payload. 
 def create_udp_segment(payload, source_ip, source_port, dest_ip, dest_port):
     udp_total_length = len(payload) + 8 # 8 bytes for udp header
     udp_header_withoutchecksum = struct.pack("!HHHH", source_port, dest_port, udp_total_length, 0)
@@ -44,7 +45,7 @@ def create_udp_segment(payload, source_ip, source_port, dest_ip, dest_port):
     udp_header = struct.pack("!HHHH", source_port, dest_port, udp_total_length, udp_checksum)
     return udp_header + payload
 
-
+# Unpacks a received UDP segment, extracting information such as source port, destination port, length, checksum, and payload.
 def unpack_udp_segment(udp_segment):
     udp_header = udp_segment[:8]
     udp_header = struct.unpack("!HHHH", udp_header)
@@ -55,8 +56,7 @@ def unpack_udp_segment(udp_segment):
     payload = udp_segment[8:]
     return udp_source_port, udp_destination_port, udp_length, udp_checksum, payload
 
-
-# this function is used to check the checksum of udp segment in the receiver side
+# Checks the checksum of a received UDP segment on the receiver side. It calculates the checksum and compares it with the received checksum.
 def check_checksum(checksum, udp_segment, source_ip, dest_ip): # the source_ip and des_ip is string
     # create a pseudo header
     udp_length = len(udp_segment)

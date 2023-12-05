@@ -7,12 +7,13 @@ from transport import unpack_udp_segment, create_udp_segment, check_checksum, ud
 from network import unpack_ip_packet, create_ip_packet
 
 
+# Creates an HTTP GET request header for a specified filename.
 def create_http_request(filename_to_request):
     # define the http request header
     http_request_header = "GET /" + filename_to_request + " HTTP/1.1\r\n\r\n"
     return http_request_header.encode()
 
-
+# Sends an acknowledgment (ACK) for a specified sequence number to the server.
 def send_ack(client_socket, server_ip, server_port, sequence_num):
     ack_data = f"ACK {sequence_num}".encode()
     ack_udp_segment = create_udp_segment(
@@ -21,7 +22,7 @@ def send_ack(client_socket, server_ip, server_port, sequence_num):
     ack_packet = create_ip_packet(client_ip, server_ip, ack_udp_segment)
     client_socket.sendto(ack_packet, (server_ip, server_port))
 
-
+# Receives a file over a raw UDP socket, handling out-of-order packets and checksum verification.
 def receive_file(client_socket, server_ip, server_port, buffer_size=65535):
     expected_seq_num = 0  # This will be the next expected sequence number
     packet_buffer = {}  # Buffer for out-of-order packets

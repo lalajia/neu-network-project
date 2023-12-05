@@ -3,7 +3,7 @@ import struct
 import random
 from sys import platform
 
-
+# Packs the IP header based on the platform.
 def pack_helper(ip_ver_ihl, ip_type_of_service, ip_total_length, ip_identification, ip_fragment_offset, ip_time_to_live,
                 ip_protocol, checksum, ip_saddr, ip_daddr):
     # if the system is macOS, pack fragmentation offset as little indian
@@ -41,6 +41,7 @@ def pack_helper(ip_ver_ihl, ip_type_of_service, ip_total_length, ip_identificati
             ip_daddr,
         )
 
+# Creates an IP packet by combining the IP header and the UDP segment.
 def create_ip_packet(ip_source, ip_dest, udp_segment):
     ################## IP header ###################
     ip_version = 4  # ipv4
@@ -92,7 +93,7 @@ def create_ip_packet(ip_source, ip_dest, udp_segment):
     return ip_header + udp_segment
 
 
-
+# Unpacks the IP header with little-endian or big-endian format based on the platform.
 def unpack_helper(ip_header):
     if platform == "darwin":
         part1 = struct.unpack("!BB", ip_header[:2])
@@ -109,6 +110,8 @@ def unpack_helper(ip_header):
         ip_header = struct.unpack("!BBHHHBBH4s4s", ip_header)
     return ip_header
 
+
+# Unpacks the components of an IP packet, including the IP version, header length, TTL, protocol, source and destination IP addresses, and the UDP segment.
 def unpack_ip_packet(ip_packet):
     # figure out how many bytes of header macOS has added and chop it off
     # we have no control over the header length (may include options), so we have to parse it

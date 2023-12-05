@@ -11,6 +11,8 @@ from network import create_ip_packet, unpack_ip_packet
 TIMEOUT = 0.025  # Timeout interval in seconds
 K = 100  # Window size
 debug = False
+
+# Extracts the acknowledgment number from an acknowledgment packet. Used in the acknowledgment reception process to determine the acknowledged sequence number.
 def extract_ack_number(ack_packet):
     try:
         message = unpack_udp_segment(unpack_ip_packet(ack_packet)[6])[4]
@@ -18,19 +20,23 @@ def extract_ack_number(ack_packet):
     except:
         return -1
 
+# Checks whether a file with a given filename exists in the server directory. Used to handle cases where the requested file does not exist on the server.
 def file_exists(filename):
     return os.path.isfile(os.path.join(get_server_dir(), filename))
 
+# Prepares an HTTP response based on the sequence number, fragment, and total number of fragments. Used to construct HTTP responses with appropriate response codes.
 def prepare_http_response(sequence_num, fragment, total_fragments):
     response_code = "202 OK" if sequence_num < total_fragments - 1 else "200 OK"
     return f"HTTP/1.1 {response_code}\r\nSequence: {sequence_num}\r\n\r\n".encode() + fragment
 
+# Sends a UDP packet containing an HTTP response fragment to the client. Used to transmit file fragments to the client.
 def send_packet(server_socket, sequence_num, fragment, server_ip, client_ip, server_port, client_port):
     http_response = prepare_http_response(sequence_num, fragment, len(fragmented_data))
     udp_segment = create_udp_segment(http_response, server_ip, server_port, client_ip, client_port)
     packet = create_ip_packet(server_ip, client_ip, udp_segment)
     server_socket.sendto(packet, (client_ip, client_port))
 
+# Handles the reception of acknowledgment packets, updating the set of acknowledged sequence numbers. Used in the file transmission loop to handle acknowledgments.
 def handle_ack_reception(server_socket, acked_sequence_numbers):
     try:
         ack_packet, _ = server_socket.recvfrom(1024)
@@ -38,7 +44,8 @@ def handle_ack_reception(server_socket, acked_sequence_numbers):
         return ack_num
     except socket.timeout:
         return None
-
+    
+# Handles the scenario where the requested file is not found, sending a 404 HTTP response. Used to notify the client that the requested file is not available.
 def handle_file_not_found(server_socket, client_ip, client_port, server_ip, server_port):
     http_response = "HTTP/1.1 404 Not Found\r\n\r\n"
     udp_segment = create_udp_segment(http_response.encode(), server_ip, server_port, client_ip, client_port)
@@ -46,7 +53,7 @@ def handle_file_not_found(server_socket, client_ip, client_port, server_ip, serv
     server_socket.sendto(packet, (client_ip, client_port))
     return None
 
-
+# Initiates the file transmission process by reading the file, fragmenting it, and sending fragments to the client. The main function responsible for sending the requested file to the client.
 def send_file(server_socket, filename, client_ip, client_port, server_ip, server_port):
     if not file_exists(filename):
         return handle_file_not_found(server_socket, client_ip, client_port, server_ip, server_port)
