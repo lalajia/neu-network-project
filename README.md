@@ -22,7 +22,7 @@ _Note about our infrastructure_: we run our virtual machine on PROxMOX hyperviso
   In a new terminal: sudo python3 rawUDPClient.py
   input the file name to be downloaded
 
-# 2. How your application works
+# 2. How application works
 
 ## Project Structure:
 
